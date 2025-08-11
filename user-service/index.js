@@ -50,4 +50,51 @@ app.get('/api/user/profile/:email', async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connectivity
+    await mongoose.connection.db.admin().ping();
+    res.json({
+      status: 'healthy',
+      service: 'user-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+      version: '1.0.0'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      service: 'user-service',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      database: 'disconnected'
+    });
+  }
+});
+
+// Readiness probe
+app.get('/ready', async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ ready: true, timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ 
+      ready: false, 
+      error: error.message,
+      timestamp: new Date().toISOString() 
+    });
+  }
+});
+
+// Liveness probe
+app.get('/live', (req, res) => {
+  res.json({ 
+    alive: true, 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.listen(5003, () => console.log('User Service on 5003'));

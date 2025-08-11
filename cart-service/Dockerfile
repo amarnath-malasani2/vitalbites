@@ -1,12 +1,42 @@
-FROM node:18-alpine
+# Multi-stage build for Cart Service
+FROM node:18-alpine AS base
+WORKDIR /app
+COPY package*.json ./
 
+# Development stage
+FROM base AS development
+ENV NODE_ENV=development
+RUN npm install
+COPY . .
+EXPOSE 5004
+CMD ["npm", "run", "dev"]
+
+# Production build stage
+FROM base AS build
+ENV NODE_ENV=production
+RUN npm ci --only=production && npm cache clean --force
+
+# Production runtime stage
+FROM node:18-alpine AS production
 WORKDIR /app
 
-COPY package.json .
-RUN npm install
+# Install curl for health checks
+RUN apk --no-cache add curl
 
-COPY . .
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S vitalbites -u 1001
+
+# Copy production dependencies and source code
+COPY --from=build /app/node_modules ./node_modules
+COPY --chown=vitalbites:nodejs . .
+
+# Set user
+USER vitalbites
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5004/health || exit 1
 
 EXPOSE 5004
-
 CMD ["node", "index.js"]

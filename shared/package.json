@@ -1,0 +1,11 @@
+{
+  "name": "@vitalbites/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities and configurations for VitalBites microservices",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.2.3",
+    "jsonwebtoken": "^9.0.0"
+  }
+}

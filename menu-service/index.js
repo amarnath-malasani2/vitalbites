@@ -35,4 +35,51 @@ app.delete('/api/menu/:id', async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connectivity
+    await mongoose.connection.db.admin().ping();
+    res.json({
+      status: 'healthy',
+      service: 'menu-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+      version: '1.0.0'
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      service: 'menu-service',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      database: 'disconnected'
+    });
+  }
+});
+
+// Readiness probe
+app.get('/ready', async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ ready: true, timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ 
+      ready: false, 
+      error: error.message,
+      timestamp: new Date().toISOString() 
+    });
+  }
+});
+
+// Liveness probe
+app.get('/live', (req, res) => {
+  res.json({ 
+    alive: true, 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.listen(5001, () => console.log('Menu Service on 5001'));
