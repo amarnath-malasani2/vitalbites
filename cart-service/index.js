@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const cartRoutes = require('./routes/cart');
+const favoriteRoutes = require('./routes/favorites');
 
 const app = express();
 app.use(cors());
@@ -36,6 +37,7 @@ const authenticateToken = (req, res, next) => {
 
 // Routes
 app.use('/api/cart', authenticateToken, cartRoutes);
+app.use('/api/favorites', authenticateToken, favoriteRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -1,64 +1,208 @@
-version: '3'
+version: '3.8'
+
 services:
   mongodb:
     image: mongo:6
     restart: always
     ports:
-      - 27017:27017
+      - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   api-gateway:
     build: ./api-gateway
     ports:
-      - "8080:8080"
+      - "${API_GATEWAY_PORT:-8080}:8080"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
+    env_file:
+      - .env
     depends_on:
       - auth-service
       - menu-service
       - order-service
       - user-service
       - cart-service
+      - payment-service
+      - notification-service
+      - admin-service
+      - analytics-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   auth-service:
     build: ./auth-service
     environment:
-      - MONGO_URL=mongodb://mongodb:27017/authdb
-      - JWT_SECRET=supersecret
-      - SMTP_EMAIL=mvamarnath63@gmail.com
-      - SMTP_PASS=almq llwf jtxm jwde
+      - MONGO_URL=${MONGO_URL}/${AUTH_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_EMAIL=${SMTP_EMAIL}
+      - SMTP_PASS=${SMTP_PASS}
+      - REDIS_URL=${REDIS_URL}
+    env_file:
+      - .env
     depends_on:
       - mongodb
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   menu-service:
     build: ./menu-service
     environment:
-      - MONGO_URL=mongodb://mongodb:27017/menudb
+      - MONGO_URL=${MONGO_URL}/${MENU_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     depends_on:
       - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   order-service:
     build: ./order-service
     environment:
-      - MONGO_URL=mongodb://mongodb:27017/orderdb
+      - MONGO_URL=${MONGO_URL}/${ORDER_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     depends_on:
       - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   cart-service:
     build: ./cart-service
     environment:
-      - MONGO_URL=mongodb://mongodb:27017/cartdb
-      - JWT_SECRET=supersecret
+      - MONGO_URL=${MONGO_URL}/${CART_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=${REDIS_URL}
+    env_file:
+      - .env
     depends_on:
       - mongodb
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   user-service:
     build: ./user-service
     environment:
-      - MONGO_URL=mongodb://mongodb:27017/userdb
+      - MONGO_URL=${MONGO_URL}/${USER_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
     depends_on:
       - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-5005}:5005"
+    environment:
+      - MONGO_URL=${MONGO_URL}/${PAYMENT_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-5006}:5006"
+    environment:
+      - MONGO_URL=${MONGO_URL}/${NOTIFICATION_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=${REDIS_URL}
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  admin-service:
+    build: ./admin-service
+    ports:
+      - "${ADMIN_SERVICE_PORT:-5007}:5007"
+    environment:
+      - MONGO_URL=${MONGO_URL}/${ADMIN_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  analytics-service:
+    build: ./analytics-service
+    ports:
+      - "${ANALYTICS_SERVICE_PORT:-5008}:5008"
+    environment:
+      - MONGO_URL=${MONGO_URL}/${ANALYTICS_DB}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     image: nginx:alpine
@@ -66,9 +210,15 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - api-gateway
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   mongo-data:
+  redis-data:

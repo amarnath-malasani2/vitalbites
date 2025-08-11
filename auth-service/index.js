@@ -480,5 +480,10 @@ app.get('/api/user/profile', async (req, res) => {
   }
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'Auth Service is running' });
+});
+
 app.listen(5000, () => console.log('Auth Service on 5000'));
 

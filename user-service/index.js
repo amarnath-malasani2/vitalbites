@@ -50,4 +50,9 @@ app.get('/api/user/profile/:email', async (req, res) => {
   }
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'User Service is running' });
+});
+
 app.listen(5003, () => console.log('User Service on 5003'));

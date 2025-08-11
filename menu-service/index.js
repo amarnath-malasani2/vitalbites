@@ -35,4 +35,9 @@ app.delete('/api/menu/:id', async (req, res) => {
   res.json({ message: 'Deleted' });
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'Menu Service is running' });
+});
+
 app.listen(5001, () => console.log('Menu Service on 5001'));

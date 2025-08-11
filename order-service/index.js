@@ -36,4 +36,9 @@ app.put('/api/orders/:id', async (req, res) => {
   res.json(order);
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'Order Service is running' });
+});
+
 app.listen(5002, () => console.log('Order Service on 5002'));
