@@ -480,6 +480,63 @@ app.get('/api/user/profile', async (req, res) => {
   }
 });
 
+// Admin endpoints for user management
+app.get('/api/auth/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, status } = req.query;
+    
+    const query = {};
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    const users = await User.find(query)
+      .select('-otp -otpExpires -password')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await User.countDocuments(query);
+    
+    res.json({
+      users,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching users for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.get('/api/auth/admin/users/count', async (req, res) => {
+  try {
+    const total = await User.countDocuments();
+    const thisMonth = await User.countDocuments({
+      createdAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) }
+    });
+    
+    res.json({ total, thisMonth });
+  } catch (error) {
+    console.error('Error getting user count:', error);
+    res.status(500).json({ error: 'Failed to get user count' });
+  }
+});
+
+// JWT Middleware for protected routes
+const requireAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'super_admin')) {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
+};
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'Auth Service is running' });

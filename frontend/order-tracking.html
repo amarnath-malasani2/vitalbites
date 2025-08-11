@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Your Order - VitalBites</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #18181b;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .order-status-step {
+            position: relative;
+        }
+
+        .order-status-step::after {
+            content: '';
+            position: absolute;
+            top: 2rem;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #374151;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+
+        .order-status-step.completed::after {
+            background: linear-gradient(to right, #10b981, #34d399);
+        }
+
+        .order-status-step:last-child::after {
+            display: none;
+        }
+
+        .status-icon {
+            position: relative;
+            z-index: 2;
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .status-icon.completed {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-icon.active {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .status-icon.pending {
+            background: #374151;
+            color: #9ca3af;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            }
+            50% {
+                box-shadow: 0 4px 30px rgba(245, 158, 11, 0.6);
+            }
+        }
+
+        .order-card {
+            background: #23232a;
+            border-radius: 1rem;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ff8800, #ff6b35);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-screen py-8">
+        <div class="container mx-auto px-4">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold gradient-text mb-2">Track Your Order</h1>
+                <p class="text-gray-400">Real-time updates on your delicious meal</p>
+            </div>
+
+            <!-- Order Search -->
+            <div class="order-card p-6 mb-8 max-w-md mx-auto">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-search text-orange-500 mr-2"></i>
+                    Find Your Order
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-400 mb-2">Order Number</label>
+                        <input type="text" id="orderNumber" 
+                               class="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-orange-500 focus:outline-none"
+                               placeholder="Enter your order number (e.g., VB000123)">
+                    </div>
+                    <button onclick="trackOrder()" 
+                            class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-search mr-2"></i>Track Order
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden text-center">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                <p class="text-gray-400 mt-2">Loading order details...</p>
+            </div>
+
+            <!-- Order Not Found -->
+            <div id="orderNotFound" class="hidden order-card p-8 text-center max-w-md mx-auto">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Order Not Found</h3>
+                <p class="text-gray-400 mb-4">We couldn't find an order with that number. Please check and try again.</p>
+                <button onclick="clearResults()" 
+                        class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors">
+                    Try Again
+                </button>
+            </div>
+
+            <!-- Order Tracking Details -->
+            <div id="orderDetails" class="hidden">
+                <!-- Order Info Card -->
+                <div class="order-card p-6 mb-8">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold gradient-text mb-2" id="orderNumberDisplay"></h2>
+                            <p class="text-gray-400" id="orderDate"></p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-orange-500" id="orderTotal"></div>
+                            <div class="text-sm text-gray-400" id="paymentStatus"></div>
+                        </div>
+                    </div>
+
+                    <!-- Estimated Delivery -->
+                    <div class="bg-orange-500 bg-opacity-10 border border-orange-500 border-opacity-20 rounded-lg p-4 mb-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-orange-400 mb-1">Estimated Delivery</h3>
+                                <p class="text-white" id="estimatedDelivery">Loading...</p>
+                            </div>
+                            <div class="text-orange-500">
+                                <i class="fas fa-clock text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-4 flex items-center">
+                            <i class="fas fa-utensils text-orange-500 mr-2"></i>
+                            Order Items
+                        </h3>
+                        <div id="orderItems" class="space-y-3">
+                            <!-- Items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Status Timeline -->
+                <div class="order-card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-6 flex items-center">
+                        <i class="fas fa-route text-orange-500 mr-2"></i>
+                        Order Progress
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" id="statusTimeline">
+                        <!-- Status steps will be loaded here -->
+                    </div>
+
+                    <!-- Current Status Details -->
+                    <div class="mt-8 p-4 bg-gray-800 rounded-lg">
+                        <h4 class="font-semibold mb-2" id="currentStatusTitle">Current Status</h4>
+                        <p class="text-gray-400" id="currentStatusDescription">Loading status details...</p>
+                        <div class="mt-3 text-sm text-gray-500" id="statusTimestamp"></div>
+                    </div>
+                </div>
+
+                <!-- Status History -->
+                <div class="order-card p-6 mb-8">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-history text-orange-500 mr-2"></i>
+                        Status History
+                    </h3>
+                    <div id="statusHistory" class="space-y-4">
+                        <!-- Status history will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Support Section -->
+                <div class="order-card p-6">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-headset text-orange-500 mr-2"></i>
+                        Need Help?
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <button onclick="contactSupport()" 
+                                class="flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors">
+                            <i class="fas fa-phone mr-2"></i>Contact Support
+                        </button>
+                        <button onclick="reportIssue()" 
+                                class="flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors">
+                            <i class="fas fa-exclamation-circle mr-2"></i>Report Issue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Order tracking functionality
+        let currentOrder = null;
+
+        const statusMap = {
+            'pending': { title: 'Order Placed', icon: 'fas fa-receipt', description: 'Your order has been received and is being processed.' },
+            'confirmed': { title: 'Confirmed', icon: 'fas fa-check-circle', description: 'Your order has been confirmed and payment processed.' },
+            'preparing': { title: 'Preparing', icon: 'fas fa-utensils', description: 'Our chefs are preparing your delicious meal.' },
+            'ready': { title: 'Ready', icon: 'fas fa-box', description: 'Your order is ready for pickup/delivery!' },
+            'out_for_delivery': { title: 'Out for Delivery', icon: 'fas fa-truck', description: 'Your order is on its way to you.' },
+            'delivered': { title: 'Delivered', icon: 'fas fa-home', description: 'Your order has been delivered. Enjoy your meal!' },
+            'cancelled': { title: 'Cancelled', icon: 'fas fa-times-circle', description: 'Your order has been cancelled.' }
+        };
+
+        async function trackOrder() {
+            const orderNumber = document.getElementById('orderNumber').value.trim();
+            
+            if (!orderNumber) {
+                showNotification('Please enter an order number', 'error');
+                return;
+            }
+
+            showLoadingState();
+
+            try {
+                const response = await fetch(`/api/orders/track/${orderNumber}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showOrderNotFound();
+                        return;
+                    }
+                    throw new Error('Failed to fetch order details');
+                }
+
+                const orderData = await response.json();
+                currentOrder = orderData;
+                displayOrderDetails(orderData);
+                hideLoadingState();
+
+            } catch (error) {
+                console.error('Error tracking order:', error);
+                hideLoadingState();
+                showNotification('Failed to track order. Please try again.', 'error');
+            }
+        }
+
+        function displayOrderDetails(order) {
+            // Update order info
+            document.getElementById('orderNumberDisplay').textContent = `#${order.orderNumber}`;
+            document.getElementById('orderDate').textContent = `Placed on ${new Date(order.createdAt).toLocaleDateString()}`;
+            document.getElementById('orderTotal').textContent = `₹${order.total}`;
+            document.getElementById('paymentStatus').textContent = order.paymentStatus === 'paid' ? 'Paid' : 'Pending Payment';
+            
+            // Update estimated delivery
+            if (order.estimatedDeliveryTime) {
+                document.getElementById('estimatedDelivery').textContent = new Date(order.estimatedDeliveryTime).toLocaleString();
+            } else {
+                document.getElementById('estimatedDelivery').textContent = 'Calculating...';
+            }
+
+            // Display order items
+            displayOrderItems(order.items);
+
+            // Display status timeline
+            displayStatusTimeline(order.status, order.statusHistory);
+
+            // Display status history
+            displayStatusHistory(order.statusHistory);
+
+            // Show order details
+            document.getElementById('orderDetails').classList.remove('hidden');
+        }
+
+        function displayOrderItems(items) {
+            const container = document.getElementById('orderItems');
+            container.innerHTML = items.map(item => `
+                <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                    <div class="flex items-center">
+                        <img src="${item.image || '/placeholder-food.jpg'}" alt="${item.name}" 
+                             class="w-12 h-12 rounded-lg object-cover mr-3">
+                        <div>
+                            <div class="font-medium">${item.name}</div>
+                            <div class="text-sm text-gray-400">Qty: ${item.quantity}</div>
+                        </div>
+                    </div>
+                    <div class="text-orange-500 font-semibold">₹${item.price * item.quantity}</div>
+                </div>
+            `).join('');
+        }
+
+        function displayStatusTimeline(currentStatus, statusHistory) {
+            const timeline = document.getElementById('statusTimeline');
+            const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+            
+            let currentIndex = statusOrder.indexOf(currentStatus);
+            if (currentIndex === -1) currentIndex = 0;
+
+            timeline.innerHTML = statusOrder.map((status, index) => {
+                const statusInfo = statusMap[status];
+                let statusClass = 'pending';
+                
+                if (index < currentIndex) {
+                    statusClass = 'completed';
+                } else if (index === currentIndex) {
+                    statusClass = 'active';
+                }
+
+                return `
+                    <div class="order-status-step ${index < statusOrder.length - 1 ? (index < currentIndex ? 'completed' : '') : ''}">
+                        <div class="status-icon ${statusClass}">
+                            <i class="${statusInfo.icon}"></i>
+                        </div>
+                        <div class="text-center">
+                            <div class="font-medium text-sm mb-1">${statusInfo.title}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Update current status details
+            const currentStatusInfo = statusMap[currentStatus];
+            document.getElementById('currentStatusTitle').textContent = currentStatusInfo.title;
+            document.getElementById('currentStatusDescription').textContent = currentStatusInfo.description;
+            
+            // Find the latest status timestamp
+            const latestStatus = statusHistory.find(h => h.status === currentStatus);
+            if (latestStatus) {
+                document.getElementById('statusTimestamp').textContent = 
+                    `Updated: ${new Date(latestStatus.timestamp).toLocaleString()}`;
+            }
+        }
+
+        function displayStatusHistory(statusHistory) {
+            const container = document.getElementById('statusHistory');
+            
+            if (!statusHistory || statusHistory.length === 0) {
+                container.innerHTML = '<p class="text-gray-400">No status history available.</p>';
+                return;
+            }
+
+            // Sort by timestamp descending (newest first)
+            const sortedHistory = [...statusHistory].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            container.innerHTML = sortedHistory.map(entry => {
+                const statusInfo = statusMap[entry.status];
+                return `
+                    <div class="flex items-start p-4 bg-gray-800 rounded-lg">
+                        <div class="flex-shrink-0 w-10 h-10 bg-orange-500 bg-opacity-20 rounded-full flex items-center justify-center mr-4">
+                            <i class="${statusInfo.icon} text-orange-500"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start mb-1">
+                                <h4 class="font-medium">${statusInfo.title}</h4>
+                                <span class="text-sm text-gray-400">${new Date(entry.timestamp).toLocaleString()}</span>
+                            </div>
+                            <p class="text-gray-400 text-sm">${entry.note || statusInfo.description}</p>
+                            ${entry.updatedBy ? `<p class="text-xs text-gray-500 mt-1">Updated by: ${entry.updatedBy}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showLoadingState() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('orderDetails').classList.add('hidden');
+            document.getElementById('orderNotFound').classList.add('hidden');
+        }
+
+        function hideLoadingState() {
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+
+        function showOrderNotFound() {
+            document.getElementById('orderNotFound').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('orderDetails').classList.add('hidden');
+        }
+
+        function clearResults() {
+            document.getElementById('orderNumber').value = '';
+            document.getElementById('orderNotFound').classList.add('hidden');
+            document.getElementById('orderDetails').classList.add('hidden');
+        }
+
+        function contactSupport() {
+            // Implement contact support functionality
+            window.open('tel:+911234567890');
+        }
+
+        function reportIssue() {
+            // Implement report issue functionality
+            alert('Report issue functionality would open a support form here.');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium shadow-lg transform translate-x-full transition-transform duration-300 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(full)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Auto-track if order number is in URL
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderNumber = urlParams.get('orderNumber');
+            
+            if (orderNumber) {
+                document.getElementById('orderNumber').value = orderNumber;
+                trackOrder();
+            }
+        });
+
+        // Allow Enter key to track order
+        document.getElementById('orderNumber').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                trackOrder();
+            }
+        });
+    </script>
+</body>
+
+</html>
