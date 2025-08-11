@@ -8,8 +8,12 @@ const { requestLogger, errorLogger } = require('./middleware/logging');
 const { authLimiter, generalLimiter } = require('./middleware/rateLimiting');
 const { circuitBreakerMiddleware, getCircuitBreakerStatus } = require('./middleware/circuitBreaker');
 const { healthEndpoint, readinessEndpoint, livenessEndpoint } = require('./middleware/health');
+const metricsService = require('./middleware/metrics');
 
 const app = express();
+
+// Initialize metrics service
+metricsService.connect().catch(err => console.error('[GATEWAY] Metrics service connection failed:', err));
 
 // Security headers
 app.use((req, res, next) => {
@@ -30,6 +34,9 @@ app.use(cors({
 // Request logging
 app.use(requestLogger);
 
+// Metrics collection
+app.use(metricsService.middleware());
+
 // Rate limiting - apply to all routes with general limit
 app.use(generalLimiter);
 
@@ -37,6 +44,11 @@ app.use(generalLimiter);
 app.get('/health', healthEndpoint);
 app.get('/ready', readinessEndpoint);
 app.get('/live', livenessEndpoint);
+
+// Metrics endpoint
+app.get('/metrics', (req, res) => {
+  res.json(metricsService.getMetrics());
+});
 
 // Circuit breaker status endpoint
 app.get('/circuit-breaker-status', (req, res) => {
@@ -166,4 +178,5 @@ app.listen(PORT, () => {
   console.log(`[GATEWAY] API Gateway listening on port ${PORT}`);
   console.log(`[GATEWAY] Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`[GATEWAY] Health check: http://localhost:${PORT}/health`);
+  console.log(`[GATEWAY] Metrics: http://localhost:${PORT}/metrics`);
 });

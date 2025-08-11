@@ -17,6 +17,19 @@ services:
       timeout: 10s
       retries: 3
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   api-gateway:
     build: 
       context: ./api-gateway
@@ -26,7 +39,10 @@ services:
     environment:
       - NODE_ENV=development
       - ALLOWED_ORIGINS=http://localhost:80,http://localhost:3000,http://127.0.0.1:80
+      - REDIS_URL=redis://redis:6379
     depends_on:
+      redis:
+        condition: service_healthy
       auth-service:
         condition: service_healthy
       menu-service:
@@ -54,8 +70,11 @@ services:
       - SMTP_EMAIL=mvamarnath63@gmail.com
       - SMTP_PASS=almq llwf jtxm jwde
       - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -71,8 +90,11 @@ services:
     environment:
       - MONGO_URL=mongodb://admin:devpassword123@mongodb:27017/menudb?authSource=admin
       - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
@@ -88,8 +110,11 @@ services:
     environment:
       - MONGO_URL=mongodb://admin:devpassword123@mongodb:27017/orderdb?authSource=admin
       - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
@@ -106,8 +131,11 @@ services:
       - MONGO_URL=mongodb://admin:devpassword123@mongodb:27017/cartdb?authSource=admin
       - JWT_SECRET=dev_jwt_secret_key_12345
       - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5004/health"]
@@ -123,8 +151,11 @@ services:
     environment:
       - MONGO_URL=mongodb://admin:devpassword123@mongodb:27017/userdb?authSource=admin
       - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
@@ -150,3 +181,4 @@ services:
 
 volumes:
   mongo-data:
+  redis-data:
